@@ -1,0 +1,16 @@
+{
+  "name": "whatsapp-bot-cindy",
+  "version": "1.0.0",
+  "description": "WhatsApp bot with SQLite, buttons, self/public mode, and save/retrieve file features.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.21",
+    "better-sqlite3": "^9.1.4",
+    "pino": "^8.17.1",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
