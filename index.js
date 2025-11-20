@@ -401,55 +401,7 @@ async function startBot() {
             );
         }
 
-        // ================== DOWNLOAD SOSMED (TIKTOK / IG / X) ==================
-        if (
-            command === "tiktok" ||
-            command === "tt" ||
-            command === "ig" ||
-            command === "instagram" ||
-            command === "twitter" ||
-            command === "x" ||
-            command === "dl"
-        ) {
-            if (!argText) {
-                return reply(
-                    "❌ Kirim link setelah command.\n" +
-                    "Contoh:\n" +
-                    "• !tiktok <url>\n" +
-                    "• !ig <url>\n" +
-                    "• !twitter <url>\n" +
-                    "• !dl <url>"
-                );
-            }
-
-            const url = argText;
-
-            // catatan: gunakan hanya untuk konten yang kamu punya haknya
-            await reply("⏳ Tunggu sebentar, sedang mengunduh video...");
-
-            try {
-                const { buffer, title } = await downloadSosmedVideo(url);
-
-                await sock.sendMessage(
-                    from,
-                    {
-                        video: buffer,
-                        caption: `✅ Berhasil download.\nJudul: ${title}`
-                    },
-                    { quoted: msg }
-                );
-            } catch (err) {
-                console.error("Error download sosmed:", err);
-                return reply(
-                    "❌ Gagal download video.\n" +
-                    "- Pastikan link valid (TikTok/IG/X)\n" +
-                    "- Bisa jadi pihak ketiga / savefrom sedang error"
-                );
-            }
-
-            return;
-        }
-
+      
         // ================== MENU ==================
         if (command === "menu") {
             return reply(
@@ -463,10 +415,7 @@ async function startBot() {
                 "• !ambil <id>\n" +
                 "• !hapus <id>\n" +
                 "• !hapus all\n" +
-                "• !tiktok <url>\n" +
-                "• !ig <url>\n" +
-                "• !twitter <url> / !x <url>\n" +
-                "• !dl <url> (auto)\n" +
+              
                 "• !self / !public\n"
             );
         }
@@ -487,3 +436,4 @@ async function startBot() {
 
 // Jalankan bot
 startBot().catch((err) => console.error("Fatal error:", err));
+
