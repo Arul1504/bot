@@ -241,7 +241,7 @@ async function startBot() {
             return reply("📢 Mode PUBLIC aktif.");
         }
 
-        // ================== SAVE ==================
+                // ================== SAVE ==================
         if (command === "save" || command === "simpan") {
             try {
                 let msgType = "text";
@@ -251,29 +251,51 @@ async function startBot() {
 
                 const content = msg.message;
 
-                const mediaMsg =
+                // pesan yang akan di-download mediannya
+                let targetForDownload = msg;
+
+                // 1️⃣ Cek media di pesan sekarang (caption !save di gambar/video/dokumen)
+                let mediaMsg =
                     content.imageMessage ||
-                    content.documentMessage ||
                     content.videoMessage ||
                     content.audioMessage ||
+                    content.documentMessage ||
                     null;
 
-                if (mediaMsg) {
-                    msgType = mediaMsg.mimetype.includes("image")
-                        ? "image"
-                        : mediaMsg.mimetype.includes("video")
-                        ? "video"
-                        : mediaMsg.mimetype.includes("audio")
-                        ? "audio"
-                        : "document";
+                // 2️⃣ Kalau gak ada, cek apakah !save ini reply ke media
+                if (!mediaMsg && content.extendedTextMessage?.contextInfo?.quotedMessage) {
+                    const quoted = content.extendedTextMessage.contextInfo.quotedMessage;
 
-                    mimeType = mediaMsg.mimetype;
-                    fileName = mediaMsg.fileName;
+                    mediaMsg =
+                        quoted.imageMessage ||
+                        quoted.videoMessage ||
+                        quoted.audioMessage ||
+                        quoted.documentMessage ||
+                        null;
 
-                    fileBuffer = await downloadMediaMessage(msg, "buffer");
+                    if (mediaMsg) {
+                        // pakai pesan quoted sebagai sumber untuk download
+                        targetForDownload = { message: quoted };
+                    }
                 }
 
-                // argText = dianggap sebagai "nama" / catatan
+                // 3️⃣ Kalau ditemukan media (gambar / video / audio / dokumen apa pun)
+                if (mediaMsg) {
+                    const mtype = mediaMsg.mimetype || "";
+
+                    if (mtype.includes("image")) msgType = "image";
+                    else if (mtype.includes("video")) msgType = "video";
+                    else if (mtype.includes("audio")) msgType = "audio";
+                    else msgType = "document"; // pdf/doc/zip/dll
+
+                    mimeType = mediaMsg.mimetype || null;
+                    fileName = mediaMsg.fileName || null;
+
+                    // download buffer dari pesan yang benar
+                    fileBuffer = await downloadMediaMessage(targetForDownload, "buffer");
+                }
+
+                // argText = nama / catatan
                 const newId = saveMessageToDB({
                     sender,
                     chatId: from,
@@ -287,13 +309,15 @@ async function startBot() {
                 return reply(
                     "✅ Berhasil disimpan.\n" +
                     `• ID: *${newId}*\n` +
-                    `• Nama: *${argText || "(tanpa nama)"}*`
+                    `• Nama: *${argText || "(tanpa nama)"}*\n` +
+                    `• Tipe: *${msgType}*`
                 );
             } catch (e) {
-                console.error(e);
-                return reply("❌ Error menyimpan.");
+                console.error("SAVE ERROR:", e);
+                return reply("❌ Error menyimpan (cek log VPS).");
             }
         }
+
 
         // ================== LIST ==================
         if (command === "list") {
@@ -436,4 +460,5 @@ async function startBot() {
 
 // Jalankan bot
 startBot().catch((err) => console.error("Fatal error:", err));
+
 
