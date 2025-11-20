@@ -1,10 +1,12 @@
 // ======================================================
-// index.js (VERSI FINAL STABIL)
+// index.js (VERSI FINAL STABIL + HAPUS + SOSMED DL)
 // - Auto QR jika session tidak ada
 // - Anti spam reconnect
 // - SQLite storage
 // - Prefix commands
 // - Buttons
+// - Hapus data by ID / ALL
+// - Download TikTok / IG / X/Twitter (Savefrom)
 // ======================================================
 
 const makeWASocket = require("@whiskeysockets/baileys").default;
@@ -18,6 +20,9 @@ const {
 const qrcode = require("qrcode-terminal");
 const P = require("pino");
 const Database = require("better-sqlite3");
+
+// 🔽 Tambahan: scraper sosmed
+const { savefrom } = require("@bochilteam/scraper");
 
 // ================== CONFIG ==================
 
@@ -37,7 +42,7 @@ db.exec(`
         sender_jid TEXT NOT NULL,
         chat_jid TEXT NOT NULL,
         msg_type TEXT NOT NULL,
-        text_content TEXT NULL,
+        text_content TEXT NULL,   -- dipakai juga sebagai "nama"
         mime_type TEXT NULL,
         file_name TEXT NULL,
         file_data BLOB NULL,
@@ -52,15 +57,18 @@ function saveMessageToDB({ sender, chatId, type, text, mimeType, fileName, fileB
         VALUES (@sender, @chatId, @type, @text, @mimeType, @fileName, @fileData)
     `);
 
-    stmt.run({
+    // ➕ return lastInsertRowid biar bisa kirim ID ke user
+    const info = stmt.run({
         sender,
         chatId,
         type,
-        text: text || null,
+        text: text || null,        // ini dianggap "nama" / keterangan
         mimeType: mimeType || null,
         fileName: fileName || null,
         fileData: fileBuffer || null
     });
+
+    return info.lastInsertRowid;
 }
 
 function listMessagesByChat(chatId, limit = 10) {
@@ -77,6 +85,50 @@ function getMessageById(id) {
     return db.prepare(`
         SELECT * FROM wa_messages WHERE id = ?
     `).get(id);
+}
+
+// ➕ Hapus 1 data
+function deleteMessageById(id, chatId) {
+    return db.prepare(`
+        DELETE FROM wa_messages
+        WHERE id = ? AND chat_jid = ?
+    `).run(id, chatId);
+}
+
+// ➕ Hapus semua data di chat tsb
+function deleteAllMessagesByChat(chatId) {
+    return db.prepare(`
+        DELETE FROM wa_messages
+        WHERE chat_jid = ?
+    `).run(chatId);
+}
+
+// ================== HELPER DOWNLOAD SOSMED ==================
+
+// helper download buffer dari URL
+async function fetchBuffer(url) {
+    // Node 18+ sudah ada fetch global
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Gagal fetch: ${res.status} ${res.statusText}`);
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+}
+
+// Ambil link download dari savefrom & kembalikan buffer video
+async function downloadSosmedVideo(link) {
+    const data = await savefrom(link); // lihat struktur kalau error: console.log(data)
+    const item = Array.isArray(data) ? data[0] : data;
+    if (!item || !item.url || !item.url.length) {
+        throw new Error("Link download tidak ditemukan dari savefrom");
+    }
+
+    const variant = item.url[0]; // biasanya kualitas utama
+    const dlUrl = variant.url;
+    const title = (item.meta && item.meta.title) || "Video";
+
+    const buffer = await fetchBuffer(dlUrl);
+
+    return { buffer, title };
 }
 
 // ================== START BOT ==================
@@ -114,14 +166,12 @@ async function startBot() {
             console.log("❌ Koneksi terputus!");
             console.log("⛔ Status Code:", code, "| Pesan:", msg);
 
-            // Jika LOGGED OUT → hapus session manual
             if (code === DisconnectReason.loggedOut) {
                 console.log("🚪 Kamu logged out dari WhatsApp!");
                 console.log("➡ Hapus folder auth-info dan jalankan ulang: node index.js");
                 return;
             }
 
-            // Kalau bukan fatal error → reconnect
             console.log("🔁 Mencoba reconnect...");
             startBot();
         }
@@ -166,7 +216,7 @@ async function startBot() {
         const sender = msg.key.participant || msg.key.remoteJid;
 
         const [command, ...args] = cmd.split(" ");
-        const argText = args.join(" ");
+        const argText = args.join(" ").trim();
 
         async function reply(text) {
             return sock.sendMessage(from, { text }, { quoted: msg });
@@ -223,7 +273,8 @@ async function startBot() {
                     fileBuffer = await downloadMediaMessage(msg, "buffer");
                 }
 
-                saveMessageToDB({
+                // argText = dianggap sebagai "nama" / catatan
+                const newId = saveMessageToDB({
                     sender,
                     chatId: from,
                     type: msgType,
@@ -233,7 +284,11 @@ async function startBot() {
                     fileBuffer
                 });
 
-                return reply("✅ Berhasil disimpan.");
+                return reply(
+                    "✅ Berhasil disimpan.\n" +
+                    `• ID: *${newId}*\n` +
+                    `• Nama: *${argText || "(tanpa nama)"}*`
+                );
             } catch (e) {
                 console.error(e);
                 return reply("❌ Error menyimpan.");
@@ -247,9 +302,13 @@ async function startBot() {
 
             if (rows.length === 0) return reply("📭 Tidak ada data.");
 
-            let txt = "📂 *Daftar Data*\n\n";
+            let txt = "📂 *Daftar Data Tersimpan*\n\n";
             for (let r of rows) {
-                txt += `• ID: *${r.id}*\n  Tipe: ${r.msg_type}\n  File: ${r.file_name || "-"}\n  Waktu: ${r.created_at}\n\n`;
+                txt += `• ID: *${r.id}*\n`;
+                txt += `  Nama: ${r.text_content || "-"}\n`;
+                txt += `  Tipe: ${r.msg_type}\n`;
+                txt += `  File: ${r.file_name || "-"}\n`;
+                txt += `  Waktu: ${r.created_at}\n\n`;
             }
 
             return sock.sendMessage(
@@ -267,9 +326,34 @@ async function startBot() {
             );
         }
 
+        // ================== HAPUS ==================
+        if (command === "hapus" || command === "delete" || command === "del") {
+            if (!argText) {
+                return reply("❌ Format salah.\nContoh:\n• !hapus 12\n• !hapus all");
+            }
+
+            // hapus semua data di chat
+            if (argText === "all" || argText === "semua") {
+                const info = deleteAllMessagesByChat(from);
+                return reply(`🗑️ Berhasil hapus ${info.changes} data di chat ini.`);
+            }
+
+            const id = parseInt(argText);
+            if (isNaN(id)) return reply("❌ ID harus angka.\nContoh: !hapus 12");
+
+            const info = deleteMessageById(id, from);
+            if (!info.changes) {
+                return reply("❌ Data dengan ID tersebut tidak ditemukan di chat ini.");
+            }
+
+            return reply(`✅ Data dengan ID *${id}* berhasil dihapus.`);
+        }
+
         // ================== AMBIL ==================
         if (command === "ambil" || command === "get") {
             const id = parseInt(args[0]);
+            if (isNaN(id)) return reply("❌ ID harus angka.\nContoh: !ambil 5");
+
             const row = getMessageById(id);
 
             if (!row) return reply("❌ Tidak ditemukan.");
@@ -317,6 +401,55 @@ async function startBot() {
             );
         }
 
+        // ================== DOWNLOAD SOSMED (TIKTOK / IG / X) ==================
+        if (
+            command === "tiktok" ||
+            command === "tt" ||
+            command === "ig" ||
+            command === "instagram" ||
+            command === "twitter" ||
+            command === "x" ||
+            command === "dl"
+        ) {
+            if (!argText) {
+                return reply(
+                    "❌ Kirim link setelah command.\n" +
+                    "Contoh:\n" +
+                    "• !tiktok <url>\n" +
+                    "• !ig <url>\n" +
+                    "• !twitter <url>\n" +
+                    "• !dl <url>"
+                );
+            }
+
+            const url = argText;
+
+            // catatan: gunakan hanya untuk konten yang kamu punya haknya
+            await reply("⏳ Tunggu sebentar, sedang mengunduh video...");
+
+            try {
+                const { buffer, title } = await downloadSosmedVideo(url);
+
+                await sock.sendMessage(
+                    from,
+                    {
+                        video: buffer,
+                        caption: `✅ Berhasil download.\nJudul: ${title}`
+                    },
+                    { quoted: msg }
+                );
+            } catch (err) {
+                console.error("Error download sosmed:", err);
+                return reply(
+                    "❌ Gagal download video.\n" +
+                    "- Pastikan link valid (TikTok/IG/X)\n" +
+                    "- Bisa jadi pihak ketiga / savefrom sedang error"
+                );
+            }
+
+            return;
+        }
+
         // ================== MENU ==================
         if (command === "menu") {
             return reply(
@@ -325,9 +458,15 @@ async function startBot() {
                 `Mode: *${isPublicMode ? "PUBLIC" : "SELF"}*\n\n` +
                 "• !menu\n" +
                 "• !profil\n" +
-                "• !save <teks>\n" +
+                "• !save <nama> (kirim teks/file)\n" +
                 "• !list\n" +
                 "• !ambil <id>\n" +
+                "• !hapus <id>\n" +
+                "• !hapus all\n" +
+                "• !tiktok <url>\n" +
+                "• !ig <url>\n" +
+                "• !twitter <url> / !x <url>\n" +
+                "• !dl <url> (auto)\n" +
                 "• !self / !public\n"
             );
         }
@@ -336,7 +475,9 @@ async function startBot() {
             return reply(
                 "🤖 *Profil Bot*\n" +
                 "- Bot SQLite\n" +
-                "- Fitur simpan & ambil file\n"
+                "- Fitur simpan & ambil file\n" +
+                "- Hapus data per ID / all\n" +
+                "- Download video TikTok/IG/X\n"
             );
         }
 
