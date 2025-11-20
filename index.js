@@ -33,13 +33,13 @@ const { PDFDocument } = require("pdf-lib");
 const sharp = require("sharp");
 
 // =============================================================
-// ==============  API KEY (ISI SENDIRI NANTI!)  ===============
+// ==============  API KEY (ISI SENDIRI NANTI!)  ===============
 // =============================================================
 const CLOUDCONVERT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiZGNiMjBiYzFmNjUwZTY5MjZmYjRkY2I4NDJmYzY4ZjZiMTZlOTk4NzZhMjNjY2Q3OGNjZTZiZmNjZWVkYTVkZWFmMjM1YWQ4NDhkMmY4ZTAiLCJpYXQiOjE3NjM2NDM3NTguMTMyOTg1LCJuYmYiOjE3NjM2NDM3NTguMTMyOTg2LCJleHAiOjQ5MTkzMTczNTguMTI1ODMyLCJzdWIiOiI3MzUyNDc3OSIsInNjb3BlcyI6WyJ1c2VyLnJlYWQiLCJ1c2VyLndyaXRlIiwidGFzay5yZWFkIiwidGFzay53cml0ZSIsIndlYmhvb2sucmVhZCIsIndlYmhvb2sud3JpdGUiLCJwcmVzZXQucmVhZCIsInByZXNldC53cml0ZSJdfQ.mm1xInqF2WeQkLj_6kAk_KiLe0a7YH6jW0Wm4huHh4RH6EddRVApRAPcoa2H-afBFBob3jJmG6FMY-aPZTt83527jGcG7Xx2X8vuRXU630fbRvUcSa3wyfnejVw2G7YikG7W3aoyZEmTok-sCb-F1P7SGLweI3m72cEO2LHthd8lV7wWmcE-det08FhFfmPojzrgAINHmUpWOqIzfpOb7ye0B9AK3zWZP1p5qPbwGXiYL0kdXGv0gHn2kLMYgwN92LlbtPLbFfvKg8llcUWpq7RrybAD2Qb-0E-dKdeuCX4wVqC1Javztp9NQD7tGP0-Zf1QtSEqEHUi32IQgqlamAlOuFgsgub-9_R6zSI3PitRBZNgRFaDacy_z-o6OuNZboaEqIjLE7wuVeskMGNjm_mnCngztD6Ia5xUTZRbPnyWPmNW9NL_slMcrGNAQWWxs27pfuRxzWXAZ3prRHdhSkoxMXW_vO6Fi31KMHVBWujbkQSjlDTznDrdx_mRIrhdnQnn4EmLRCMSsUVZI8pj4wyEPzyzCFt-j7qBfXTmHljkSSyTGrYV0nc08UdCDA2b1RTHz3UiAC-KOhqEl48xNhnP0VOXccnpHjAzdLOi83hDQBqEPQZrXIqcufD6cRLkk7bsYElLqb-ezevEiG2SuPchR2g2F_nWHH4D4e52Lo8";
 const REMOVE_BG_API_KEY = "QDGnRLDXXPqc9iXDUFCVUXic";
 
 // =============================================================
-// ===============  CONFIG BOT  ================================
+// ===============  CONFIG BOT  ================================
 // =============================================================
 const PREFIX = "!";
 const OWNER_JID = "6281578859076@s.whatsapp.net";
@@ -48,7 +48,7 @@ let isPublicMode = true;
 let botNumberJid = null;
 
 // =============================================================
-// ===============  DATABASE SQLITE ============================
+// ===============  DATABASE SQLITE ============================
 // =============================================================
 const db = new Database("bot.db");
 
@@ -115,7 +115,7 @@ function deleteAllMessagesByChat(chatId) {
 }
 
 // =============================================================
-// ===============  FILE STORAGE TEMP DIR ======================
+// ===============  FILE STORAGE TEMP DIR ======================
 // =============================================================
 const TMP_DIR = path.join(__dirname, "tmp");
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR);
@@ -143,7 +143,7 @@ function parsePageRanges(rangeStr, maxPages) {
 }
 
 // =============================================================
-// ===============  IMAGE FUNCTIONS (sharp) =====================
+// ===============  IMAGE FUNCTIONS (sharp) =====================
 // =============================================================
 
 // compress image
@@ -177,7 +177,7 @@ async function removeBackground(imgBuffer) {
 }
 
 // =============================================================
-// ===============  PDF FUNCTIONS ===============================
+// ===============  PDF FUNCTIONS ===============================
 // =============================================================
 
 // JPG → PDF
@@ -231,7 +231,7 @@ async function splitPDF(pdfBuf, rangeStr) {
 }
 
 // =============================================================
-// ===============  CLOUDCONVERT SIMPLE MODE ====================
+// ===============  CLOUDCONVERT SIMPLE MODE ====================
 // =============================================================
 const cloudConvertClient = new CloudConvert(CLOUDCONVERT_API_KEY, false);
 
@@ -263,7 +263,7 @@ async function convertCloudConvert(buffer, fromExt, toExt) {
 }
 
 // =============================================================
-// ===============  WHATSAPP BOT START ==========================
+// ===============  WHATSAPP BOT START ==========================
 // =============================================================
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState("./auth-info");
@@ -321,7 +321,7 @@ async function startBot() {
         rawText = rawText.trim();
         if (!rawText.startsWith(PREFIX)) return;
 
-        const cmd = rawText.slice(1).trim().toLowerCase();        
+        const cmd = rawText.slice(1).trim().toLowerCase();       
         const [command, ...args] = cmd.split(" ");
         const argText = args.join(" ").trim();
 
@@ -374,13 +374,19 @@ async function startBot() {
                 if (mediaMsg) {
                     mime = mediaMsg.mimetype;
                     fileName = mediaMsg.fileName || null;
-                    msgType = mime.includes("image")
-                        ? "image"
-                        : mime.includes("video")
-                        ? "video"
-                        : mime.includes("audio")
-                        ? "audio"
-                        : "document";
+                    
+                    // --- Logika Penentuan msgType yang Diperbaiki ---
+                    if (mime.includes("image") && !mime.includes("gif")) {
+                        msgType = "image";
+                    } else if (mime.includes("video") || mime.includes("gif")) {
+                        msgType = "video";
+                    } else if (mime.includes("audio")) {
+                        msgType = "audio";
+                    } else {
+                        // Termasuk PDF dan semua dokumen lainnya
+                        msgType = "document";
+                    }
+                    // ------------------------------------------------
 
                     fileBuffer = await downloadMediaMessage(target, "buffer");
                 }
@@ -395,7 +401,7 @@ async function startBot() {
                     fileBuffer
                 });
 
-                return reply(`✅ Tersimpan.\n• ID: ${id}\n• Nama: ${argText || "-"}`);
+                return reply(`✅ Tersimpan.\n• ID: ${id}\n• Nama: ${argText || "-"}\n• Tipe Tersimpan: ${msgType}`);
             } catch (e) {
                 console.error(e);
                 return reply("❌ Gagal menyimpan file.");
@@ -412,10 +418,10 @@ async function startBot() {
             let out = "📂 *Daftar Data*\n\n";
             for (const r of rows) {
                 out += `• ID: ${r.id}\n`;
-                out += `  Nama: ${r.text_content || "-"}\n`;
-                out += `  File: ${r.file_name || "-"}\n`;
-                out += `  Tipe: ${r.msg_type}\n`;
-                out += `  Waktu: ${r.created_at}\n\n`;
+                out += `  Nama: ${r.text_content || "-"}\n`;
+                out += `  File: ${r.file_name || "-"}\n`;
+                out += `  Tipe: ${r.msg_type}\n`;
+                out += `  Waktu: ${r.created_at}\n\n`;
             }
 
             return reply(out);
@@ -442,7 +448,7 @@ async function startBot() {
         }
 
         // =============================================================
-        // ====================== GET / AMBIL ==========================
+        // ====================== GET / AMBIL (Perbaikan RePlu) ========
         // =============================================================
         if (["ambil", "get"].includes(command)) {
             const id = parseInt(args[0]);
@@ -456,20 +462,28 @@ async function startBot() {
             const buf = row.file_data;
             const cap = row.text_content || "";
 
-            if (row.msg_type === "image")
+            // Mengirim FOTO sebagai media biasa (image)
+            if (row.msg_type === "image" && !row.mime_type.includes("pdf")) {
                 return sock.sendMessage(from, { image: buf, caption: cap }, { quoted: msg });
+            }
 
-            if (row.msg_type === "video")
+            // Mengirim VIDEO sebagai media biasa (video)
+            if (row.msg_type === "video") {
                 return sock.sendMessage(from, { video: buf, caption: cap }, { quoted: msg });
+            }
 
-            if (row.msg_type === "audio")
+            // Mengirim AUDIO sebagai media biasa (audio)
+            if (row.msg_type === "audio") {
                 return sock.sendMessage(from, { audio: buf, ptt: false }, { quoted: msg });
-
+            }
+            
+            // Mengirim PDF dan dokumen/media lain sebagai DOKUMEN
             return sock.sendMessage(
                 from,
                 {
                     document: buf,
-                    fileName: row.file_name || "file",
+                    fileName: row.file_name || "file." + row.mime_type.split("/").pop(),
+                    mimetype: row.mime_type || "application/octet-stream",
                     caption: cap
                 },
                 { quoted: msg }
@@ -780,7 +794,7 @@ async function startBot() {
             return reply(
                 `📘 *MENU BOT*\n\n` +
                 "📦 MANAGER FILE\n" +
-                "• !save <nama>\n" +
+                "• !save <nama> (reply media/teks)\n" +
                 "• !list\n" +
                 "• !ambil <id>\n" +
                 "• !hapus <id>\n" +
