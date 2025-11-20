@@ -32,7 +32,7 @@ const fetch = require("node-fetch");
 //   API KEY (ISI SENDIRI)
 // =============================
 const CLOUDCONVERT_API_KEY = "ISI_SENDIRI";
-const REMOVE_BG_API_KEY = "ISI_SENDIRI";
+const REMOVE_BG_API_KEY = "QDGnRLDXXPqc9iXDUFCVUXic";
 const PREFIX = "!";
 const OWNER_JID = "6281578859076@s.whatsapp.net";
 
@@ -664,3 +664,4 @@ async function start() {
 }
 
 start();
+
