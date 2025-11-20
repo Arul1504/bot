@@ -1,20 +1,4 @@
-// =============================================================
-// index.js — FINAL VERSION (FULL FEATURES)
-// - Save media/text (image/audio/video/document/etc)
-// - List / Get / Delete / Delete All
-// - JPG → PDF
-// - Compress PDF
-// - Merge PDF
-// - Split PDF
-// - Compress Photo
-// - HD Photo
-// - RemoveBG
-// - CloudConvert Simple Mode (PDF↔Word, PDF↔Excel, Word→PDF, Excel→PDF)
-// - SQLite DB
-// - No TikTok/IG/X downloader
-// =============================================================
 
-// ========== MODULE IMPORTS ==========
 const makeWASocket = require("@whiskeysockets/baileys").default;
 const {
     useMultiFileAuthState,
@@ -826,3 +810,4 @@ async function startBot() {
 }
 
 startBot();
+
