@@ -1,4 +1,3 @@
-
 const makeWASocket = require("@whiskeysockets/baileys").default;
 const {
     useMultiFileAuthState,
@@ -810,4 +809,3 @@ async function startBot() {
 }
 
 startBot();
-
